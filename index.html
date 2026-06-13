@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diamonds Box Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --bg:#0E1726; --panel:#152138; --panel2:#1B2A4A; --line:rgba(255,255,255,.09);
+    --ink:#EAF0FA; --muted:#8294B4; --gold:#C8A24B; --goldsoft:rgba(200,162,75,.16);
+    --win:#7FD49B;
+    --display:"Saira Condensed",system-ui,sans-serif;
+    --body:"IBM Plex Sans",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--body);
+    -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+    padding:28px 16px 60px; line-height:1.4;
+  }
+  .wrap{max-width:980px;margin:0 auto}
+
+  /* ---- controls (not part of the screenshot) ---- */
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin:0 auto 18px;max-width:980px}
+  .btn{
+    font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--ink);background:var(--panel2);
+    border:1px solid var(--line);border-radius:8px;padding:10px 16px;cursor:pointer;
+    transition:background .15s,border-color .15s,transform .05s;
+  }
+  .btn:hover{background:#22335a;border-color:var(--gold)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--gold);color:#10182a;border-color:var(--gold)}
+  .btn.primary:hover{background:#d6b25f}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .hint{font-size:12.5px;color:var(--muted);align-self:center}
+
+  /* ---- card ---- */
+  .card{
+    background:linear-gradient(180deg,#101a2e,#0d1525);
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:0 24px 60px -24px rgba(0,0,0,.7);
+    animation:rise .5s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.card{animation:none}}
+
+  /* ---- scoreboard header ---- */
+  .board{padding:24px 26px 18px;background:
+    radial-gradient(120% 140% at 50% -20%,rgba(200,162,75,.10),transparent 60%);}
+  .matchup{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}
+  .team{display:flex;align-items:center;gap:12px;min-width:0}
+  .team.home{justify-content:flex-end;text-align:right}
+  .badge{width:14px;height:14px;transform:rotate(45deg);border-radius:2px;flex:none;
+    box-shadow:0 0 0 3px rgba(255,255,255,.04)}
+  .tname{font-family:var(--display);font-weight:700;font-size:clamp(22px,4.4vw,34px);
+    letter-spacing:.01em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trec{font-size:12px;color:var(--muted);margin-top:4px;font-weight:500}
+  .score{font-family:var(--display);font-weight:800;font-size:clamp(34px,8vw,58px);line-height:.9}
+  .center{display:flex;flex-direction:column;align-items:center;gap:6px;padding:0 6px}
+  .status{font-family:var(--display);font-weight:700;font-size:13px;letter-spacing:.22em;
+    color:var(--gold);text-transform:uppercase}
+  .scoreline{display:flex;align-items:center;gap:10px}
+  .dash{color:var(--muted);font-family:var(--display);font-weight:600;font-size:28px}
+  .winner{color:#fff}.loser{color:var(--muted)}
+
+  .rule{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:18px 0}
+  .rule.gold{background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.55}
+
+  /* ---- line score ---- */
+  .linescore{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  .linescore table{min-width:420px}
+  .linescore th,.linescore td{padding:6px 9px;text-align:center;font-size:14px;
+    border-bottom:1px solid var(--line)}
+  .linescore th{font-family:var(--display);font-weight:600;color:var(--muted);
+    font-size:12px;letter-spacing:.06em}
+  .linescore td.team-cell,.linescore th.team-cell{text-align:left;font-family:var(--display);
+    font-weight:600;font-size:15px;white-space:nowrap}
+  .linescore td.tot{font-family:var(--mono);font-weight:600}
+  .linescore td.runs{color:var(--gold)}
+  .linescore .sep{border-left:1px solid var(--line)}
+  .decisions{margin-top:12px;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+  .decisions b{color:var(--ink);font-weight:600}
+
+  /* ---- box tables ---- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .col{padding:20px 22px}
+  .col + .col{border-left:1px solid var(--line)}
+  .col.full{grid-column:1 / -1;border-left:none;border-top:1px solid var(--line)}
+  .sec{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .sec::before{content:"";width:8px;height:8px;background:var(--gold);transform:rotate(45deg);flex:none}
+  .sec.sub{margin-top:20px}
+  .box{width:100%;font-size:13px}
+  .box th,.box td{padding:5px 6px;border-bottom:1px solid var(--line)}
+  .box th{font-family:var(--display);font-weight:600;color:var(--muted);font-size:11.5px;
+    letter-spacing:.04em;text-align:right}
+  .box th:first-child{text-align:left}
+  .box td{text-align:right;font-variant-numeric:tabular-nums}
+  .box td:first-child{text-align:left;white-space:nowrap}
+  .box .name{font-weight:500}
+  .box .pos{color:var(--muted);font-size:11px;font-weight:500;margin-left:5px;font-family:var(--display);letter-spacing:.03em}
+  .box tr.indent td:first-child{padding-left:18px;color:var(--muted)}
+  .box tr.totals td{font-family:var(--display);font-weight:700;border-top:1.5px solid var(--gold);
+    border-bottom:none;color:var(--ink)}
+  .box td.rate{color:var(--muted)}
+
+  /* ---- notes ---- */
+  .notes{font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:4px}
+  .notes p{margin:2px 0;padding-left:16px;position:relative}
+  .notes p::before{content:"";position:absolute;left:0;top:7px;width:5px;height:5px;
+    background:var(--gold);transform:rotate(45deg)}
+  .notes b{color:var(--ink);font-weight:600;font-family:var(--display);letter-spacing:.03em}
+
+  /* ---- footer info ---- */
+  .info{padding:16px 24px;background:var(--panel);border-top:1px solid var(--line);
+    display:flex;flex-wrap:wrap;gap:6px 26px;font-size:12px;color:var(--muted)}
+  .info b{color:var(--ink);font-weight:600;font-family:var(--display);letter-spacing:.04em;margin-right:5px}
+  .brand{margin:18px auto 0;max-width:980px;text-align:center;color:var(--muted);font-size:11.5px}
+
+  @media (max-width:680px){
+    .grid{grid-template-columns:1fr}
+    .col + .col{border-left:none;border-top:1px solid var(--line)}
+    body{padding:18px 10px 50px}
+    .board{padding:18px}
+    .col{padding:16px}
+  }
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+    background:var(--gold);color:#10182a;font-family:var(--display);font-weight:600;
+    padding:11px 20px;border-radius:9px;opacity:0;pointer-events:none;transition:.25s;letter-spacing:.03em}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div class="controls" id="controls">
+  <button class="btn primary" onclick="copyReddit()">Copy Reddit Markdown</button>
+  <button class="btn" onclick="downloadPNG()">Download PNG</button>
+  <span class="hint">Edit the <code>game</code> object near the bottom of this file to update everything.</span>
+</div>
+
+<div class="wrap">
+  <div class="card" id="card"><!-- rendered by JS --></div>
+</div>
+<div class="brand" id="brand"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================================
+   EDIT THIS BLOCK AFTER EACH GAME — everything below renders automatically.
+   This is SAMPLE data (a made-up game) so you can see the layout. Replace it
+   with your real scorebook numbers. Season AVG/OPS/ERA come from your
+   spreadsheet's Season tabs; paste them in as text.
+   ============================================================================ */
+const game = {
+  status: "Final",
+  venue: "Hiram Bithorn Stadium, San Juan, PR",
+  date:  "June 12, 2026",
+  firstPitch: "6:00 PM",
+  duration: "",
+  attendance: "",
+  weather: "86\u00b0, Partly Sunny",
+  umpires: "",
+
+  // Diamonds listed first (visiting team in San Juan) — bats in top of each inning.
+  away: {
+    name: "Kansas City Diamonds", short: "Diamonds", record: "1\u20130", color: "#C8A24B",
+    errors: 0,
+    line: [3,0,0,4,3,"x","x"],          // run-rule: game ended after 5
+    batters: [
+      {name:"Skaggs, A.",   pos:"2B", ab:3,r:2,h:2,rbi:2,bb:1,k:0, avg:".667",  ops:"1.750"},
+      {name:"Roupe, R.",    pos:"RF", ab:3,r:0,h:1,rbi:0,bb:1,k:0, avg:".333",  ops:".833"},
+      {name:"McMillan, C.", pos:"CF", ab:3,r:1,h:1,rbi:0,bb:0,k:1, avg:".333",  ops:".667"},
+      {name:"Kuszak, A.",   pos:"SS", ab:3,r:1,h:0,rbi:0,bb:0,k:0, avg:".000",  ops:".000"},
+      {name:"Cripe, H.",    pos:"3B", ab:3,r:1,h:1,rbi:0,bb:0,k:0, avg:".333",  ops:".667"},
+      {name:"Blampied, R.", pos:"DP", ab:3,r:2,h:3,rbi:3,bb:0,k:0, avg:"1.000", ops:"2.667"},
+      {name:"Brown, A.",    pos:"1B", ab:2,r:0,h:0,rbi:0,bb:0,k:0, avg:".000",  ops:".000"},
+      {name:"Boggs, L.",    pos:"C",  ab:2,r:1,h:1,rbi:2,bb:0,k:0, avg:".500",  ops:"1.500"},
+      {name:"Hastings, A.", pos:"LF", ab:3,r:2,h:2,rbi:1,bb:0,k:0, avg:".667",  ops:"1.333"},
+    ],
+    pitchers: [
+      {name:"Valdespino, H.", dec:"W, 1\u20130, CG/SHO", ip:"5.0", h:0, r:0, er:0, bb:1, k:6, hr:0, era:"0.00"},
+    ],
+    notes: [
+      "<b>2B:</b> Blampied 2 (1, 2), Skaggs (1), Boggs (1).",
+      "<b>RBI:</b> Blampied 3, Skaggs 2, Boggs 2, Hastings.",
+      "<b>RISP:</b> 6-for-13. &nbsp; <b>Team LOB:</b> 4.",
+    ],
+  },
+
+  home: {
+    name: "Smoke", short: "Smoke", record: "0\u20131", color: "#7A8699",
+    errors: 2,
+    line: [0,0,0,0,0,"x","x"],
+    batters: [
+      {name:"Jefferson, J.", pos:"2B", ab:1,r:0,h:0,rbi:0,bb:1,k:0, avg:".000", ops:".500"},
+      {name:"Goodnight, D.", pos:"CF", ab:2,r:0,h:0,rbi:0,bb:0,k:0, avg:".000", ops:".000"},
+      {name:"Harding, K.",   pos:"RF", ab:2,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+      {name:"Howe, M.",      pos:"DP", ab:2,r:0,h:0,rbi:0,bb:0,k:0, avg:".000", ops:".000"},
+      {name:"Grimm, M.",     pos:"1B", ab:2,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+      {name:"Krapf, T.",     pos:"C",  ab:2,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+      {name:"Malau'ulu, T.", pos:"3B", ab:2,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+      {name:"Wooley, K.",    pos:"SS", ab:1,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+      {name:"Coleman, A.",   pos:"LF", ab:1,r:0,h:0,rbi:0,bb:0,k:1, avg:".000", ops:".000"},
+    ],
+    pitchers: [
+      {name:"Pease, A.", dec:"L, 0\u20131", ip:"3.2", h:6, r:6, er:6, bb:1, k:1, hr:0, era:"14.73"},
+      {name:"Price, E.", dec:"",            ip:"1.1", h:5, r:4, er:3, bb:1, k:0, hr:0, era:"20.25"},
+    ],
+    notes: [
+      "<b>Team LOB:</b> 1.",
+    ],
+  },
+};
+/* ============================================================================
+   END OF EDIT BLOCK — rendering code below. You shouldn't need to touch it.
+   ============================================================================ */
+
+const INNINGS = Math.max(game.away.line.length, game.home.line.length);
+const sum = a => a.reduce((t,v)=> t + (typeof v==="number"?v:0), 0);
+const tot = (arr,k) => arr.reduce((t,b)=> t + (Number(b[k])||0), 0);
+
+function teamTotals(t){
+  const R = sum(t.line);
+  const H = tot(t.batters,"h");
+  const E = (typeof t.errors === "number") ? t.errors : eFromNotes(t);
+  return {R, H, E};
+}
+function eFromNotes(t){
+  const m = (t.notes||[]).join(" ");
+  const mm = m.match(/<b>E:<\/b>\s*([^.<]*)/i);
+  if(!mm) return 0;
+  return (mm[1].match(/\(/g)||[]).length || (mm[1].trim()?1:0);
+}
+
+function lineScoreHTML(){
+  const heads = Array.from({length:INNINGS},(_,i)=>`<th>${i+1}</th>`).join("");
+  const row = (t)=>{
+    const aT = teamTotals(t);
+    const cells = Array.from({length:INNINGS},(_,i)=>{
+      const v = t.line[i]; return `<td>${v===undefined?"":v}</td>`;
+    }).join("");
+    return `<tr>
+      <td class="team-cell">${t.short}</td>${cells}
+      <td class="tot runs sep">${aT.R}</td><td class="tot">${aT.H}</td><td class="tot">${aT.E}</td>
+    </tr>`;
+  };
+  return `<div class="linescore"><table>
+    <thead><tr><th class="team-cell"></th>${heads}
+      <th class="sep">R</th><th>H</th><th>E</th></tr></thead>
+    <tbody>${row(game.away)}${row(game.home)}</tbody>
+  </table></div>`;
+}
+
+function decisionsHTML(){
+  const find = (re)=>{
+    for(const side of [game.home,game.away])
+      for(const p of side.pitchers){ const m=(p.dec||"").match(re); if(m) return p; }
+    return null;
+  };
+  const w=find(/^W/), l=find(/^L/), s=find(/^S/);
+  const part=(label,p)=> p? `<span><b>${label}:</b> ${p.name.replace(/,.*/,"")} (${p.dec})</span>`:"";
+  return `<div class="decisions">${part("W",w)}${part("L",l)}${part("S",s)}</div>`;
+}
+
+function boxBatters(t){
+  const rows = t.batters.map(b=>`
+    <tr class="${b.indent?'indent':''}">
+      <td><span class="name">${b.name}</span><span class="pos">${b.pos||""}</span></td>
+      <td>${b.ab}</td><td>${b.r}</td><td>${b.h}</td><td>${b.rbi}</td>
+      <td>${b.bb}</td><td>${b.k}</td><td class="rate">${b.avg||""}</td><td class="rate">${b.ops||""}</td>
+    </tr>`).join("");
+  const T = ["ab","r","h","rbi","bb","k"].map(k=>`<td>${tot(t.batters,k)}</td>`).join("");
+  return `<table class="box">
+    <thead><tr><th>Batters — ${t.short}</th><th>AB</th><th>R</th><th>H</th>
+      <th>RBI</th><th>BB</th><th>K</th><th>AVG</th><th>OPS</th></tr></thead>
+    <tbody>${rows}<tr class="totals"><td>Totals</td>${T}<td></td><td></td></tr></tbody>
+  </table>`;
+}
+
+function boxPitchers(t){
+  const rows = t.pitchers.map(p=>`
+    <tr>
+      <td><span class="name">${p.name}</span>${p.dec?`<span class="pos">${p.dec}</span>`:""}</td>
+      <td>${p.ip}</td><td>${p.h}</td><td>${p.r}</td><td>${p.er}</td>
+      <td>${p.bb}</td><td>${p.k}</td><td>${p.hr}</td><td class="rate">${p.era||""}</td>
+    </tr>`).join("");
+  return `<table class="box">
+    <thead><tr><th>Pitchers — ${t.short}</th><th>IP</th><th>H</th><th>R</th>
+      <th>ER</th><th>BB</th><th>K</th><th>HR</th><th>ERA</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function notesHTML(t){
+  if(!t.notes||!t.notes.length) return "";
+  return `<div class="notes">${t.notes.map(n=>`<p>${n}</p>`).join("")}</div>`;
+}
+
+function teamBlock(side){
+  const t = game[side];
+  return `<div class="col">
+    <div class="sec">${boxBatters(t)?"Batting":""} — ${t.short}</div>
+    ${boxBatters(t)}
+    <div class="sec sub">Pitching — ${t.short}</div>
+    ${boxPitchers(t)}
+    ${notesHTML(t)}
+  </div>`;
+}
+
+function render(){
+  const aT=teamTotals(game.away), hT=teamTotals(game.home);
+  const awayWin = aT.R>hT.R, homeWin = hT.R>aT.R;
+  const card = `
+  <div class="board">
+    <div class="matchup">
+      <div class="team away">
+        <span class="badge" style="background:${game.away.color}"></span>
+        <div><div class="tname ${awayWin?'winner':'loser'}">${game.away.short}</div>
+        <div class="trec">${game.away.record||""}</div></div>
+      </div>
+      <div class="center">
+        <div class="status">${game.status||"Final"}</div>
+        <div class="scoreline">
+          <span class="score ${awayWin?'winner':'loser'}">${aT.R}</span>
+          <span class="dash">–</span>
+          <span class="score ${homeWin?'winner':'loser'}">${hT.R}</span>
+        </div>
+      </div>
+      <div class="team home">
+        <div><div class="tname ${homeWin?'winner':'loser'}">${game.home.short}</div>
+        <div class="trec">${game.home.record||""}</div></div>
+        <span class="badge" style="background:${game.home.color}"></span>
+      </div>
+    </div>
+    <div class="rule gold"></div>
+    ${lineScoreHTML()}
+    ${decisionsHTML()}
+  </div>
+  <div class="grid">
+    ${teamBlock("away")}
+    ${teamBlock("home")}
+  </div>
+  <div class="info">
+    <span><b>Venue</b>${game.venue||"—"}</span>
+    <span><b>Date</b>${game.date||"—"}</span>
+    <span><b>First pitch</b>${game.firstPitch||"—"}</span>
+    <span><b>Time</b>${game.duration||"—"}</span>
+    <span><b>Att</b>${game.attendance||"—"}</span>
+    <span><b>Weather</b>${game.weather||"—"}</span>
+    ${game.umpires?`<span><b>Umpires</b>${game.umpires}</span>`:""}
+  </div>`;
+  document.getElementById("card").innerHTML = card;
+  document.getElementById("brand").textContent =
+    `${game.away.name} at ${game.home.name} · ${game.date||""}`;
+  document.title = `${game.away.short} ${aT.R}, ${game.home.short} ${hT.R} — Box Score`;
+}
+render();
+
+/* ---------- Reddit Markdown generation (same data, plain-text output) ---------- */
+function pad(s,n){s=String(s);return s+" ".repeat(Math.max(0,n-s.length));}
+function redditMarkdown(){
+  const aT=teamTotals(game.away), hT=teamTotals(game.home);
+  let md = `## ${game.away.short} ${aT.R}, ${game.home.short} ${hT.R} — Final\n\n`;
+  // line score
+  const inn = Array.from({length:INNINGS},(_,i)=>i+1);
+  md += `|Team|${inn.join("|")}|R|H|E|\n`;
+  md += `|:--|${inn.map(()=> ":-:").join("|")}|:-:|:-:|:-:|\n`;
+  const lrow=(t,T)=>`|**${t.short}**|${inn.map((_,i)=>t.line[i]??"").join("|")}|**${T.R}**|${T.H}|${T.E}|`;
+  md += lrow(game.away,aT)+"\n"+lrow(game.home,hT)+"\n\n";
+  // decisions
+  const dec=[];
+  for(const side of [game.home,game.away]) for(const p of side.pitchers)
+    if(p.dec) dec.push(`**${p.dec.split(",")[0]}:** ${p.name.replace(/,.*/,"")} (${p.dec})`);
+  if(dec.length) md += dec.join(" · ")+"\n\n";
+  // batting + pitching per team
+  const bat=(t)=>{
+    let s=`**Batters — ${t.short}**\n\n|Player|AB|R|H|RBI|BB|K|AVG|OPS|\n|:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|\n`;
+    t.batters.forEach(b=> s+=`|${b.name} ${b.pos||""}|${b.ab}|${b.r}|${b.h}|${b.rbi}|${b.bb}|${b.k}|${b.avg||""}|${b.ops||""}|\n`);
+    s+=`|**Totals**|${tot(t.batters,"ab")}|${tot(t.batters,"r")}|${tot(t.batters,"h")}|${tot(t.batters,"rbi")}|${tot(t.batters,"bb")}|${tot(t.batters,"k")}|||\n`;
+    return s+"\n";
+  };
+  const pit=(t)=>{
+    let s=`**Pitchers — ${t.short}**\n\n|Pitcher|IP|H|R|ER|BB|K|HR|ERA|\n|:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|\n`;
+    t.pitchers.forEach(p=> s+=`|${p.name}${p.dec?" ("+p.dec+")":""}|${p.ip}|${p.h}|${p.r}|${p.er}|${p.bb}|${p.k}|${p.hr}|${p.era||""}|\n`);
+    return s+"\n";
+  };
+  const strip = s => s.replace(/<\/?b>/g,"**").replace(/&nbsp;/g," ");
+  const noteblk=(t)=> t.notes&&t.notes.length ? `*${t.short}:* `+t.notes.map(strip).join(" ")+"\n\n" : "";
+  md += bat(game.away)+bat(game.home)+pit(game.away)+pit(game.home);
+  md += noteblk(game.away)+noteblk(game.home);
+  md += `^(${game.venue||""} · ${game.date||""} · Att ${game.attendance||"—"})\n`;
+  return md;
+}
+
+function toast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1900);
+}
+function copyReddit(){
+  const md=redditMarkdown();
+  navigator.clipboard.writeText(md).then(
+    ()=>toast("Reddit Markdown copied — paste into a text post"),
+    ()=>{ // fallback
+      const ta=document.createElement("textarea");ta.value=md;document.body.appendChild(ta);
+      ta.select();document.execCommand("copy");ta.remove();
+      toast("Reddit Markdown copied");
+    });
+}
+function downloadPNG(){
+  if(typeof html2canvas==="undefined"){
+    toast("Image library didn't load — just screenshot the page instead");return;
+  }
+  toast("Rendering image…");
+  const node=document.getElementById("card");
+  html2canvas(node,{backgroundColor:"#0E1726",scale:2,useCORS:true}).then(canvas=>{
+    const a=document.createElement("a");
+    const aT=teamTotals(game.away),hT=teamTotals(game.home);
+    a.download=`diamonds-${(game.date||"game").replace(/[^a-z0-9]+/gi,"-").toLowerCase()}.png`;
+    a.href=canvas.toDataURL("image/png");a.click();
+    toast("PNG downloaded");
+  }).catch(()=>toast("Couldn't render — screenshot the page instead"));
+}
+</script>
+</body>
+</html>
